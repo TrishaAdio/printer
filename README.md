@@ -175,6 +175,41 @@ tools/                    asset generation and the verification suites
 build/                    PyInstaller spec, version resource, installer script
 ```
 
+### Size of the thing
+
+Counted across all 89 tracked files with `git ls-files`, excluding the 16
+generated binary assets:
+
+| Language | Files | Lines | Code | Comments | Blank |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Python | 32 | 7,845 | 5,880 | 665 | 1,300 |
+| QML | 32 | 5,628 | 4,678 | 341 | 609 |
+| PyInstaller spec | 1 | 241 | 171 | 42 | 28 |
+| Documentation | 1 | 212 | 168 | – | 44 |
+| CI workflow | 1 | 165 | 130 | 5 | 30 |
+| Config (`pyproject`, requirements, version resource, `.gitignore`) | 4 | 96 | 68 | 19 | 9 |
+| Installer script | 1 | 60 | 42 | 10 | 8 |
+| QML module definition | 1 | 34 | 32 | – | 2 |
+| **Total** | **73** | **14,281** | **11,169** | **1,082** | **2,030** |
+
+Where those lines live:
+
+| Area | Lines |
+| --- | ---: |
+| `app/` — the application itself | 11,801 |
+| `tools/` — asset generation and the five verification suites | 1,706 |
+| `build/` and `.github/` — packaging and CI | 499 |
+| root — README and configuration | 275 |
+
+Roughly one line in ten is a comment. They are concentrated where the reasoning
+is not recoverable from the code: the strip rendering budget, the printable-area
+coordinate origin, the DEVMODE field flags, and the several places where the
+obvious approach was tried, measured and rejected.
+
+Generated assets, which are not committed as artwork but produced by
+`tools/gen_assets.py`, come to 16 files and about 3.2 MB: eight synthesised sound
+effects, the grain texture, and the icon at ten sizes.
+
 A few decisions worth knowing about, because they are not obvious and they were
 each arrived at the hard way:
 
