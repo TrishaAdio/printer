@@ -74,7 +74,17 @@ def capabilities(name: str, refresh: bool = False) -> Capabilities:
     with _caps_lock:
         if not refresh and name in _caps_cache:
             return _caps_cache[name]
-    caps = backend.capabilities(name)
+    try:
+        caps = backend.capabilities(name)
+    except Exception as exc:
+        # Never fatal. This runs at startup for whatever printer is default, and
+        # one driver reporting something unexpected must not stop the application
+        # from opening. Generic defaults still allow printing.
+        log.exception("could not read the capabilities of %s", name)
+        caps = Capabilities(
+            printer=name,
+            notes=[f"Could not read this printer's capabilities ({exc}); using defaults"],
+        )
     with _caps_lock:
         _caps_cache[name] = caps
     return caps

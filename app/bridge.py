@@ -263,7 +263,16 @@ class Backend(QObject):
             self._caps = {}
             self.capsChanged.emit()
             return
-        caps = printers.capabilities(self._printer)
+        try:
+            caps = printers.capabilities(self._printer)
+        except Exception as exc:
+            # Belt as well as braces: printers.capabilities already degrades
+            # rather than raising, but the interface must come up regardless.
+            log.exception("capability reload failed")
+            self._caps = {}
+            self.capsChanged.emit()
+            self.toast.emit("bad", f"Could not read the printer's settings: {exc}")
+            return
         self._caps = caps.to_dict()
         notes = self._options.constrain_to(caps)
         self.capsChanged.emit()

@@ -31,6 +31,7 @@ import win32ui
 from .geometry import PageGeometry
 from .logging_setup import get as get_logger
 from .options import Capabilities, NamedId, Paper, PrinterInfo, PrintOptions, Resolution
+from .util import as_point
 
 log = get_logger("printers.win")
 
@@ -321,12 +322,11 @@ def capabilities(name: str) -> Capabilities:
             label = f"Paper {paper_id}"
         width_mm = height_mm = 0.0
         if index < len(sizes):
-            try:
-                # DC_PAPERSIZE is reported in tenths of a millimetre.
-                width_mm = float(sizes[index][0]) / 10.0
-                height_mm = float(sizes[index][1]) / 10.0
-            except (TypeError, IndexError, ValueError):
-                pass
+            # DC_PAPERSIZE is reported in tenths of a millimetre, in a pair whose
+            # concrete type varies by driver and pywin32 build.
+            pair = as_point(sizes[index])
+            if pair is not None:
+                width_mm, height_mm = pair[0] / 10.0, pair[1] / 10.0
         papers.append(Paper(id=int(paper_id), name=label, width_mm=width_mm, height_mm=height_mm))
     caps.papers = papers
 
@@ -363,12 +363,12 @@ def capabilities(name: str) -> Capabilities:
     resolutions: list[Resolution] = []
     raw_res = _dev_caps(name, port, DC_ENUMRESOLUTIONS, []) or []
     for item in raw_res:
-        try:
-            x_dpi, y_dpi = int(item[0]), int(item[1])
-            if x_dpi > 0 and y_dpi > 0:
-                resolutions.append(Resolution(x=x_dpi, y=y_dpi))
-        except (TypeError, IndexError, ValueError):
+        pair = as_point(item)
+        if pair is None:
             continue
+        x_dpi, y_dpi = int(pair[0]), int(pair[1])
+        if x_dpi > 0 and y_dpi > 0:
+            resolutions.append(Resolution(x=x_dpi, y=y_dpi))
     resolutions.sort(key=lambda r: (r.x, r.y))
     caps.resolutions = resolutions
     if resolutions:

@@ -88,6 +88,51 @@ def clamp(value, low, high):
     return low if value < low else high if value > high else value
 
 
+def as_point(value) -> tuple[float, float] | None:
+    """Coerce whatever a driver returned for a coordinate pair into ``(x, y)``.
+
+    ``win32print.DeviceCapabilities`` reports paper dimensions and resolutions as
+    pairs, but the shape of each pair is not consistent: depending on the pywin32
+    build and the capability being queried it can be a tuple, a list, a mapping
+    keyed ``x``/``y``, or an object with ``x``/``y`` attributes. Indexing blindly
+    with ``[0]`` works against some drivers and raises ``KeyError`` against others,
+    which is a crash on startup for anyone with the wrong printer installed.
+
+    Returns ``None`` when the value cannot be read as a pair, so callers can skip
+    the entry instead of failing.
+    """
+    if value is None:
+        return None
+    # Mapping, with either casing.
+    if isinstance(value, dict):
+        for keys in (("x", "y"), ("X", "Y"), ("cx", "cy"), (0, 1)):
+            if keys[0] in value and keys[1] in value:
+                try:
+                    return (float(value[keys[0]]), float(value[keys[1]]))
+                except (TypeError, ValueError):
+                    return None
+        return None
+    # Object with attributes, such as a PyPOINT or a QSize-alike.
+    for names in (("x", "y"), ("cx", "cy"), ("width", "height")):
+        if hasattr(value, names[0]) and hasattr(value, names[1]):
+            try:
+                first = getattr(value, names[0])
+                second = getattr(value, names[1])
+                # Guard against methods rather than plain attributes.
+                first = first() if callable(first) else first
+                second = second() if callable(second) else second
+                return (float(first), float(second))
+            except (TypeError, ValueError):
+                return None
+    # Sequence.
+    try:
+        if len(value) >= 2:
+            return (float(value[0]), float(value[1]))
+    except (TypeError, ValueError, KeyError, IndexError):
+        return None
+    return None
+
+
 class PageRangeError(ValueError):
     """Raised for a page range the user can fix by editing the text."""
 

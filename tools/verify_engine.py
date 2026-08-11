@@ -201,6 +201,47 @@ def main() -> int:
           est["pages"] == 8 and est["sheets"] == 4,
           f"pages={est['pages']} sheets={est['sheets']}")
 
+    print("\nDriver coordinate pairs")
+    # win32print.DeviceCapabilities does not report paper sizes and resolutions in
+    # a consistent shape. A real Windows machine returned mappings where tuples
+    # were expected, and indexing with [0] raised KeyError during startup, which
+    # took the whole application down before the window appeared. Every shape seen
+    # or plausible is covered here.
+    from app.core.util import as_point
+
+    class Point:
+        def __init__(self, x, y):
+            self.x, self.y = x, y
+
+    class Sized:
+        def __init__(self, w, h):
+            self._w, self._h = w, h
+
+        def width(self):
+            return self._w
+
+        def height(self):
+            return self._h
+
+    cases = [
+        ("tuple", (2100, 2970), (2100.0, 2970.0)),
+        ("list", [2100, 2970], (2100.0, 2970.0)),
+        ("dict lower case", {"x": 2100, "y": 2970}, (2100.0, 2970.0)),
+        ("dict upper case", {"X": 2100, "Y": 2970}, (2100.0, 2970.0)),
+        ("dict cx and cy", {"cx": 2100, "cy": 2970}, (2100.0, 2970.0)),
+        ("dict integer keys", {0: 2100, 1: 2970}, (2100.0, 2970.0)),
+        ("object attributes", Point(2100, 2970), (2100.0, 2970.0)),
+        ("object accessors", Sized(2100, 2970), (2100.0, 2970.0)),
+        ("three element sequence", (600, 600, 0), (600.0, 600.0)),
+    ]
+    for label, value, expected in cases:
+        check(f"pair read from a {label}", as_point(value) == expected, str(as_point(value)))
+
+    junk = [None, {}, {"a": 1}, 42, "nope", (), (1,), object()]
+    check("unreadable pairs return None rather than raising",
+          all(as_point(value) is None for value in junk),
+          f"{len(junk)} malformed values rejected")
+
     print("\nN-up cell layout")
     avail = Rect(0, 0, 4811, 6866)
     for count in (1, 2, 4, 6, 9, 16):
