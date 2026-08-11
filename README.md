@@ -124,8 +124,8 @@ Five suites, all runnable without a printer:
 
 ```bash
 python tools/verify_render.py     # rasterisation and placement, 35 checks
-python tools/verify_engine.py     # whole jobs end to end, 38 checks
-python tools/verify_queue.py      # batching, pause, cancel, retry, persistence, 22 checks
+python tools/verify_engine.py     # whole jobs end to end, 34 checks
+python tools/verify_queue.py      # batching, pause, cancel, retry, persistence, 21 checks
 python tools/verify_ui.py         # loads the interface, fails on any QML warning
 python app/main.py --selftest     # renders a real PDF and exits; run against the packaged exe too
 ```
