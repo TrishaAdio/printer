@@ -1,0 +1,21 @@
+# Build output
+build/work/
+build/work-onefile/
+dist/
+*.spec.bak
+
+# Verification scratch: generated PDFs, screenshots, diff images
+.verify/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.ruff_cache/
+
+# Editors
+.vscode/
+.idea/
+*.swp

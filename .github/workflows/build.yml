@@ -1,0 +1,165 @@
+name: build
+
+# Produces the Windows binaries. This exists because the exe has to be built on
+# Windows: PyInstaller cannot cross compile, so a Linux machine can write the code
+# but cannot package it.
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  checks:
+    name: checks (linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff
+
+      - name: System libraries for offscreen Qt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libegl1 libxkbcommon0 libxkbcommon-x11-0 \
+            libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 \
+            libxcb-image0 libxcb-render-util0 libxcb-xinerama0 fonts-dejavu-core
+
+      - name: Lint
+        run: ruff check app tools
+
+      - name: Compile every module
+        run: python -m compileall -q app tools
+
+      - name: Rendering checks
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python tools/verify_render.py
+
+      - name: Engine checks
+        env:
+          QT_QPA_PLATFORM: offscreen
+          GLASSPRINT_SIMULATE: "1"
+        run: python tools/verify_engine.py
+
+      - name: Queue checks
+        env:
+          QT_QPA_PLATFORM: offscreen
+          GLASSPRINT_SIMULATE: "1"
+        run: python tools/verify_queue.py
+
+      - name: Interface loads without warnings
+        env:
+          QT_QPA_PLATFORM: offscreen
+          GLASSPRINT_SIMULATE: "1"
+        run: python tools/verify_ui.py
+
+  build:
+    name: build (windows)
+    runs-on: windows-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller==6.11.1
+
+      - name: Regenerate assets
+        run: python tools/gen_assets.py
+
+      - name: Checks against the real Windows printing stack
+        env:
+          GLASSPRINT_SIMULATE: "1"
+        run: |
+          python tools/verify_render.py
+          python tools/verify_engine.py
+          python tools/verify_queue.py
+
+      - name: Interface loads on Windows
+        env:
+          GLASSPRINT_SIMULATE: "1"
+        run: python tools/verify_ui.py
+
+      - name: Printer layer imports against real pywin32
+        # The runner has no printer attached, so this checks that the win32 backend
+        # imports and enumerates without raising rather than that it finds anything.
+        run: python -c "from app.core import printers_win; print('win32 backend imported'); print(printers_win.list_printers())"
+
+      - name: Build directory distribution
+        run: pyinstaller build/glassprint.spec --noconfirm --distpath dist --workpath build/work
+
+      - name: Self test the packaged exe
+        run: |
+          dist/GlassPrint/GlassPrint.exe --selftest
+          if ($LASTEXITCODE -ne 0) { throw "packaged exe failed its self test" }
+
+      - name: Build portable single file
+        env:
+          GLASSPRINT_ONEFILE: "1"
+        run: pyinstaller build/glassprint.spec --noconfirm --distpath dist/portable --workpath build/work-onefile
+
+      - name: Self test the portable exe
+        run: |
+          dist/portable/GlassPrint-portable.exe --selftest
+          if ($LASTEXITCODE -ne 0) { throw "portable exe failed its self test" }
+
+      - name: Build the installer
+        run: |
+          choco install innosetup --no-progress -y
+          & "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe" build\installer.iss
+
+      - name: Report sizes
+        run: |
+          $dir = (Get-ChildItem dist/GlassPrint -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
+          $one = (Get-Item dist/portable/GlassPrint-portable.exe).Length / 1MB
+          Write-Host ("directory build : {0:N1} MB" -f $dir)
+          Write-Host ("portable exe    : {0:N1} MB" -f $one)
+          Get-ChildItem dist/installer
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GlassPrint-installer
+          path: dist/installer/*.exe
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GlassPrint-portable
+          path: dist/portable/GlassPrint-portable.exe
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GlassPrint-folder
+          path: dist/GlassPrint/**
+          if-no-files-found: error
+
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/installer/*.exe
+            dist/portable/GlassPrint-portable.exe

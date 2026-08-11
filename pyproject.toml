@@ -1,0 +1,31 @@
+[project]
+name = "glassprint"
+version = "1.0.0"
+description = "A glass-morphic printing companion for Windows"
+requires-python = ">=3.9"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+exclude = [".venv", "build/work", "dist", ".verify"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4"]
+
+ignore = [
+    # Broad excepts are deliberate and load bearing here. Printer drivers are
+    # third party code reached through win32 calls, and every one of them can fail
+    # in ways that are not documented. A driver that misbehaves must degrade a
+    # feature, never take the application down mid batch, so those call sites
+    # catch everything and log it.
+    "BLE001",
+    # Same reasoning for the handful of places that swallow a failure silently:
+    # they are best effort cleanup and cosmetic effects.
+    "S110", "S112",
+    # parent=QModelIndex() is the required signature for a Qt model override.
+    "B008",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# The verification tools print as they go and are meant to be read top to bottom.
+"tools/*" = ["E402", "T201"]
