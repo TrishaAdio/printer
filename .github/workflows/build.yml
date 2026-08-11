@@ -144,9 +144,20 @@ jobs:
           }
 
       - name: Build the installer
+        # ${env:ProgramFiles(x86)} needs the braces: without them PowerShell reads
+        # $env:ProgramFiles and then trips over the (x86). Both install locations
+        # are searched because Chocolatey has used each of them.
         run: |
           choco install innosetup --no-progress -y
-          & "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe" build\installer.iss
+          $candidates = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+          )
+          $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) { throw "Inno Setup was installed but ISCC.exe was not found" }
+          Write-Host "using $iscc"
+          & $iscc build\installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "the installer build failed" }
 
       - name: Report sizes
         run: |
