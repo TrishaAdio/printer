@@ -1,5 +1,7 @@
 # GlassPrint
 
+[![build](https://github.com/TrishaAdio/printer/actions/workflows/build.yml/badge.svg)](https://github.com/TrishaAdio/printer/actions/workflows/build.yml)
+
 A printing companion for Windows 10. Drop files on it, choose how they should
 print, press one button. Built for batches: hundreds of files at a time, one
 device at a time, in order, with everything recoverable if it goes wrong.
@@ -67,11 +69,15 @@ a title sequence on launch and sound throughout.
 
 Download from the **Actions** tab of this repository, or from a release:
 
-| Artifact | What it is |
-| --- | --- |
-| `GlassPrint-installer` | Installer. Per user by default, no administrator prompt. Recommended. |
-| `GlassPrint-portable` | A single exe. Nothing to install, but slower to start because it unpacks itself each time. |
-| `GlassPrint-folder` | The unpacked application folder, if you would rather copy it yourself. |
+| Artifact | Size | What it is |
+| --- | ---: | --- |
+| `GlassPrint-installer` | 50 MB | `GlassPrint-1.0.0-setup.exe`. Installs per user by default, so no administrator prompt. Recommended. |
+| `GlassPrint-portable` | 76 MB | A single exe. Nothing to install, but slower to start because it unpacks itself into a temporary folder each time. |
+| `GlassPrint-folder` | 191 MB | The unpacked application folder, if you would rather copy it into place yourself. This is what the installer ships and it starts fastest. |
+
+Most of that weight is Qt and the Python runtime. The build strips the parts of Qt
+the app never loads, which removes about 500 MB including a 194 MB browser engine
+that PyInstaller collects by default.
 
 **Windows will warn you the first time.** The exe is not code signed, so
 SmartScreen shows "Windows protected your PC". Choose *More info* then *Run
