@@ -182,7 +182,18 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {'PASS' if ok else 'FAIL'}  {label}" + (f"  ({detail})" if detail else ""))
             failed += 0 if ok else 1
         print("self test passed" if not failed else f"{failed} check(s) failed")
-        return 0 if not failed else 4
+
+        # Leave immediately rather than returning and unwinding.
+        #
+        # The packaged build reported every check as passing and then still exited
+        # non-zero, because tearing down Qt after the event loop has already
+        # finished can fault on Windows. That turned a successful verification into
+        # a failed build. Everything worth checking has been checked by this point,
+        # so the diagnostic path skips teardown entirely and reports its own
+        # verdict. The normal path below still shuts down properly.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0 if not failed else 4)
 
     return app.exec()
 
