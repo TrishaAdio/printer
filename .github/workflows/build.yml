@@ -111,9 +111,20 @@ jobs:
         run: pyinstaller build/glassprint.spec --noconfirm --distpath dist --workpath build/work
 
       - name: Self test the packaged exe
+        # The exe is a GUI subsystem binary, so PowerShell does not wait for it and
+        # $LASTEXITCODE is whatever it was before. Start-Process -Wait -PassThru is
+        # the only way to get the real exit code, with the output redirected so the
+        # results still appear in the log.
         run: |
-          dist/GlassPrint/GlassPrint.exe --selftest
-          if ($LASTEXITCODE -ne 0) { throw "packaged exe failed its self test" }
+          $p = Start-Process -FilePath "dist\GlassPrint\GlassPrint.exe" `
+                             -ArgumentList "--selftest" -Wait -PassThru -NoNewWindow `
+                             -RedirectStandardOutput selftest.out `
+                             -RedirectStandardError selftest.err
+          Get-Content selftest.out
+          Get-Content selftest.err
+          if ($p.ExitCode -ne 0) {
+            throw "packaged exe failed its self test (exit $($p.ExitCode))"
+          }
 
       - name: Build portable single file
         env:
@@ -122,8 +133,15 @@ jobs:
 
       - name: Self test the portable exe
         run: |
-          dist/portable/GlassPrint-portable.exe --selftest
-          if ($LASTEXITCODE -ne 0) { throw "portable exe failed its self test" }
+          $p = Start-Process -FilePath "dist\portable\GlassPrint-portable.exe" `
+                             -ArgumentList "--selftest" -Wait -PassThru -NoNewWindow `
+                             -RedirectStandardOutput portable.out `
+                             -RedirectStandardError portable.err
+          Get-Content portable.out
+          Get-Content portable.err
+          if ($p.ExitCode -ne 0) {
+            throw "portable exe failed its self test (exit $($p.ExitCode))"
+          }
 
       - name: Build the installer
         run: |
